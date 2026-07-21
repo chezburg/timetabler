@@ -1,0 +1,32 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      - PORT=4000
+      - DATA_DIR=/app/data
+    volumes:
+      - scheduler-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    # Not published to the host on purpose — the frontend's Nginx proxies /api to it
+    # over the internal docker network. Uncomment below if you want direct access
+    # for debugging (e.g. curl http://localhost:4000/api/health from the host).
+    # ports:
+    #   - "4000:4000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "2982:80"
+
+volumes:
+  scheduler-data:

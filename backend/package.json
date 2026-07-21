@@ -1,0 +1,21 @@
+{
+  "name": "class-scheduler-backend",
+  "version": "1.0.0",
+  "description": "API for the Class Scheduler app: spreadsheet parsing, catalog storage, and saved schedules.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^2.0.1",
+    "nanoid": "^5.0.7",
+    "xlsx": "^0.18.5"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
