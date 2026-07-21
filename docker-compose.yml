@@ -5,6 +5,8 @@ services:
     environment:
       - PORT=4000
       - DATA_DIR=/app/data
+      - PUID=$PUID
+      - PGID=$PGID
     volumes:
       - /docker/timetabler:/app/data
     healthcheck:
@@ -13,6 +15,7 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
+
     # Not published to the host on purpose — the frontend's Nginx proxies /api to it
     # over the internal docker network. Uncomment below if you want direct access
     # for debugging (e.g. curl http://localhost:4000/api/health from the host).
