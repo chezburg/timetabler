@@ -14,7 +14,9 @@ function orderComponents(keys) {
   });
 }
 
-export default function YourCourses({ courses, onRemoveCourse, onSelect, onDragStart, onDragEnd }) {
+const TERM_LABEL = { Fall: 'Fall', Winter: 'Winter', FullYear: 'Full year', Unknown: 'Term unknown' };
+
+export default function YourCourses({ courses, courseTermInfo, streamText, onRemoveCourse, onSelect, onDragStart, onDragEnd, onSwapTerm, onOverrideTerm }) {
   if (!courses.length) {
     return (
       <section className="panel">
@@ -35,6 +37,7 @@ export default function YourCourses({ courses, onRemoveCourse, onSelect, onDragS
             byComponent.get(s.component).push(s);
           }
           const components = orderComponents([...byComponent.keys()]);
+          const termInfo = courseTermInfo[course.courseId] || { term: 'Unknown' };
 
           return (
             <li key={course.courseId} className="course-group" style={{ '--course-color': course.color }}>
@@ -44,6 +47,17 @@ export default function YourCourses({ courses, onRemoveCourse, onSelect, onDragS
                   <span className="course-code">{course.code}</span>
                   <span className="course-title">{course.title}</span>
                 </div>
+                <span className={`term-tag term-tag-${termInfo.term}`}>{TERM_LABEL[termInfo.term] || termInfo.term}</span>
+                {termInfo.term !== 'FullYear' && (
+                  <button
+                    type="button"
+                    className="term-fix-btn"
+                    title="Correct the guessed term for this course"
+                    onClick={() => onOverrideTerm(course.courseId, termInfo.term === 'Fall' ? 'Winter' : 'Fall')}
+                  >
+                    fix
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-remove"
@@ -53,6 +67,16 @@ export default function YourCourses({ courses, onRemoveCourse, onSelect, onDragS
                   &times;
                 </button>
               </div>
+
+              {termInfo.siblingCourseId && (
+                <button
+                  type="button"
+                  className="swap-term-btn"
+                  onClick={() => onSwapTerm(course.courseId, termInfo.siblingCourseId)}
+                >
+                  Switch to {termInfo.siblingLabel} instead
+                </button>
+              )}
 
               {components.map((component) => {
                 const options = byComponent.get(component);
@@ -77,7 +101,7 @@ export default function YourCourses({ courses, onRemoveCourse, onSelect, onDragS
                           section={section}
                           selected={selectedId === section.id}
                           locked={locked}
-                          courseColor={course.color}
+                          streamText={streamText}
                           onSelect={() => onSelect(course.courseId, component, section.id)}
                           onDragStart={() =>
                             onDragStart({
@@ -87,6 +111,7 @@ export default function YourCourses({ courses, onRemoveCourse, onSelect, onDragS
                               section,
                               courseColor: course.color,
                               courseCode: course.code,
+                              term: termInfo.term,
                             })
                           }
                           onDragEnd={onDragEnd}

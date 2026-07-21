@@ -13,16 +13,43 @@ while flagging real time conflicts as you build the plan.
   naming/spacing differences are fine). Handles multiple meeting patterns in one cell
   (e.g. `Tu | 1:30 PM - 3:30 PM | MC-110; Th | 1:30 PM - 2:30 PM | MC-110`) and TBA/blank
   times.
-- **Drag-and-drop scheduling** — drag a section chip from the sidebar onto the calendar
-  to schedule it (or just click it — both work). Dragging a new option onto an
-  already-scheduled component swaps it.
+- **Two always-visible calendars** — a Fall Term and a Winter Term calendar sit
+  side by side at all times, even before you've uploaded anything.
+- **Fall/Winter course matching** — courses that share a base code but differ only
+  by their trailing letter (e.g. `NMM 2270A` vs `NMM 2270B`, `WRITING 2130F` vs
+  `WRITING 2130G`) are treated as **one requirement** offered in two terms, not two
+  separate courses. Adding either variant satisfies the requirement and hides both
+  from the course pool; a "Switch to Winter/Fall instead" button lets you swap which
+  one you've picked. Term is inferred from the alphabetical order of the letters
+  (earlier = Fall, e.g. A/F before B/G) — including for courses that only appear
+  once in your file, by learning the letter's meaning from other paired courses
+  in the same catalog. This is a heuristic, not a guarantee — see Known limitations.
+- **Drag-and-drop scheduling** — drag a section chip from the sidebar onto the
+  matching term's calendar to schedule it (or just click it — both work). A chip
+  only reacts to whichever calendar matches its term. Dragging a new option onto
+  an already-scheduled component swaps it.
 - **Auto-populate single choice** — if a course component (e.g. a TUT) only has one
   section available, it's selected automatically the moment you add the course.
 - **Automatic color coding** — every course gets a consistent color across its sidebar
   chips and calendar blocks.
 - **Conflict detection** — overlapping time slots are outlined and hatched in red on
   the calendar, listed in a banner above it, and previewed live (green/red ghost
-  blocks) while you're dragging a chip around, before you drop it.
+  blocks) while you're dragging a chip around, before you drop it. Conflicts are
+  checked separately per term.
+- **Requisites detection** — the messy "Requisites and Constraints" column is parsed
+  into distinct badges on each section chip: **Restricted**, **Prereq**, **Coreq**,
+  **Antireq**, **Cross-listed**, and **Overflow** (sections that only open once
+  regular sections fill up), each with a "Show details" toggle for the exact text.
+- **Online course detection** — sections with a Distance Studies/Online delivery
+  type get an **Online** badge.
+- **Full vs. Overflow** — currently-full sections get a **Full** badge; overflow
+  sections (opened only once everything else is full) get a separate **Overflow**
+  badge — a section can be both at once.
+- **Optional stream/program input** — type your engineering stream (or program) once
+  in the sidebar and section chips with a restriction get a rough "matches" /
+  "likely excludes you" / "unclear" hint based on the restriction text. This is a
+  best-effort text match, not a guarantee — the exact restriction text is always
+  shown alongside it.
 - **Saved plans** — multiple named schedules per uploaded catalog, persisted in
   SQLite so they survive a restart.
 
@@ -107,6 +134,22 @@ silently importing garbage.
 
 - No user accounts/authentication — this is meant for a single person (or a small
   trusted group) running their own instance, not a public multi-tenant deployment.
+- **Fall/Winter inference is a heuristic.** It assumes the trailing letter on a
+  course code determines its term, and that alphabetically-earlier letters mean
+  Fall. It cross-checks letters against every paired course in your file (e.g. if
+  `NMM 2270A/B` establishes that "B" means Winter, a lone `ECE 2231B` gets read as
+  Winter too), but a letter that never appears in a confirmed pair anywhere in your
+  file falls back to a plain guess. It also can't detect the case explicitly
+  mentioned as tricky — two different letters that are actually the *same* term,
+  just different slots. If it guesses wrong, click the small "fix" button next to
+  a course's term tag in the sidebar to flip it — this is a frontend-only
+  preference, though, so it resets on page reload.
+- **The stream/restriction match hint is a rough text comparison**, not a real
+  eligibility check — always read the actual restriction text shown alongside it.
+- **The Fall/Winter mutual-exclusion (picking one variant hides the other) is
+  enforced in the UI only**, not the API — someone scripting direct API calls
+  against their own instance could still add both. Fine for personal use, worth
+  knowing if you ever expose this beyond yourself.
 - `node:sqlite` is still an experimental Node API. It's been reliable in testing here,
   but if you'd rather use a more battle-tested driver, swapping in `better-sqlite3` is
   a small, contained change (it only touches `backend/src/db.js`).

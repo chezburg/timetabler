@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import * as api from './api.js';
 import { flattenSelectedMeetings, findConflicts } from './utils/conflicts.js';
+import { buildRequirements } from './utils/term.js';
 import TopBar from './components/TopBar.jsx';
 import UploadPanel from './components/UploadPanel.jsx';
 import CoursePool from './components/CoursePool.jsx';
@@ -23,11 +24,17 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
+  // Frontend-only preferences (reset on reload): manual Fall/Winter corrections
+  // for courses whose term the alphabetical-suffix heuristic guesses wrong, and
+  // an optional self-reported stream/program used for the lightweight
+  // restriction-matching hint on section chips.
+  const [termOverrides, setTermOverrides] = useState({});
+  const [streamText, setStreamText] = useState('');
+
   const flashError = useCallback((err) => {
     setError(typeof err === 'string' ? err : err?.message || 'Something went wrong');
   }, []);
 
-  // Initial load: fetch catalog list, select the most recent one if any.
   useEffect(() => {
     api
       .listCatalogs()
@@ -38,7 +45,6 @@ export default function App() {
       .catch(flashError);
   }, [flashError]);
 
-  // When the active catalog changes, load its full course tree and its saved schedules.
   useEffect(() => {
     if (!catalogId) {
       setCatalog(null);
@@ -63,7 +69,6 @@ export default function App() {
       .catch(flashError);
   }, [catalogId, flashError]);
 
-  // When the active schedule changes, load its full detail (courses/sections/selections).
   useEffect(() => {
     if (!scheduleId) {
       setSchedule(null);
@@ -72,16 +77,13 @@ export default function App() {
     api.getSchedule(scheduleId).then(setSchedule).catch(flashError);
   }, [scheduleId, flashError]);
 
-  const refreshSchedulesList = useCallback(
-    (updated) => {
-      setSchedules((prev) => {
-        const exists = prev.some((s) => s.id === updated.id);
-        const entry = { id: updated.id, catalogId: updated.catalogId, name: updated.name, createdAt: updated.createdAt, updatedAt: updated.updatedAt };
-        return exists ? prev.map((s) => (s.id === updated.id ? entry : s)) : [entry, ...prev];
-      });
-    },
-    []
-  );
+  const refreshSchedulesList = useCallback((updated) => {
+    setSchedules((prev) => {
+      const exists = prev.some((s) => s.id === updated.id);
+      const entry = { id: updated.id, catalogId: updated.catalogId, name: updated.name, createdAt: updated.createdAt, updatedAt: updated.updatedAt };
+      return exists ? prev.map((s) => (s.id === updated.id ? entry : s)) : [entry, ...prev];
+    });
+  }, []);
 
   const handleUpload = useCallback(
     async (file) => {
@@ -140,6 +142,19 @@ export default function App() {
     [scheduleId, flashError]
   );
 
+  const handleSwapTerm = useCallback(
+    async (currentCourseId, siblingCourseId) => {
+      try {
+        await api.removeCourseFromSchedule(scheduleId, currentCourseId);
+        const updated = await api.addCourseToSchedule(scheduleId, siblingCourseId);
+        setSchedule(updated);
+      } catch (err) {
+        flashError(err);
+      }
+    },
+    [scheduleId, flashError]
+  );
+
   const handleNewSchedule = useCallback(
     async (name) => {
       try {
@@ -184,19 +199,47 @@ export default function App() {
     }
   }, [scheduleId, schedules, catalogId, flashError]);
 
-  const flatMeetings = useMemo(() => (schedule ? flattenSelectedMeetings(schedule.courses) : []), [schedule]);
-  const { conflictKeys, pairs: conflictPairs } = useMemo(() => findConflicts(flatMeetings), [flatMeetings]);
+  // --- Requirement grouping (course-code family -> Fall/Winter/Full-year variants) ---
+  const requirements = useMemo(() => (catalog ? buildRequirements(catalog.courses, termOverrides) : []), [catalog, termOverrides]);
+
+  const courseTermInfo = useMemo(() => {
+    const map = {};
+    for (const req of requirements) {
+      for (const variant of req.variants) {
+        const sibling = req.variants.find((v) => v.id !== variant.id);
+        map[variant.id] = {
+          term: variant.term,
+          siblingCourseId: sibling ? sibling.id : null,
+          siblingLabel: sibling ? sibling.term : null,
+        };
+      }
+    }
+    return map;
+  }, [requirements]);
 
   const addedCourseIds = useMemo(() => new Set(schedule ? schedule.courses.map((c) => c.courseId) : []), [schedule]);
-  const poolCourses = useMemo(() => {
-    if (!catalog) return [];
-    const q = poolSearch.trim().toLowerCase();
-    return catalog.courses.filter((c) => {
-      if (addedCourseIds.has(c.id)) return false;
-      if (!q) return true;
-      return c.code.toLowerCase().includes(q) || c.title.toLowerCase().includes(q);
-    });
-  }, [catalog, addedCourseIds, poolSearch]);
+
+  // A requirement disappears from the pool once any one of its term variants has
+  // been added — picking Fall or Winter satisfies the whole requirement, so the
+  // other becomes unavailable until you remove/swap it (point 8).
+  const poolRequirements = useMemo(
+    () => requirements.filter((req) => !req.variants.some((v) => addedCourseIds.has(v.id))),
+    [requirements, addedCourseIds]
+  );
+
+  const flatMeetings = useMemo(() => (schedule ? flattenSelectedMeetings(schedule.courses) : []), [schedule]);
+
+  const fallMeetings = useMemo(
+    () => flatMeetings.filter((fm) => ['Fall', 'FullYear'].includes(courseTermInfo[fm.courseId]?.term)),
+    [flatMeetings, courseTermInfo]
+  );
+  const winterMeetings = useMemo(
+    () => flatMeetings.filter((fm) => ['Winter', 'FullYear'].includes(courseTermInfo[fm.courseId]?.term)),
+    [flatMeetings, courseTermInfo]
+  );
+
+  const fallConflicts = useMemo(() => findConflicts(fallMeetings), [fallMeetings]);
+  const winterConflicts = useMemo(() => findConflicts(winterMeetings), [winterMeetings]);
 
   const estimatedUnits = useMemo(() => {
     if (!schedule) return 0;
@@ -211,6 +254,19 @@ export default function App() {
     }
     return total;
   }, [schedule]);
+
+  const handleDropChip = useCallback(
+    (chip) => {
+      handleSetSelection(chip.courseId, chip.component, chip.sectionId);
+      setDraggingChip(null);
+    },
+    [handleSetSelection]
+  );
+
+  const handleClearSlot = useCallback(
+    (courseId, component) => handleSetSelection(courseId, component, null),
+    [handleSetSelection]
+  );
 
   return (
     <div className="app-shell">
@@ -230,43 +286,75 @@ export default function App() {
 
       {error && <Toast message={error} onDismiss={() => setError(null)} />}
 
-      {!catalog ? (
-        <div className="empty-stage">
-          <UploadPanel onUpload={handleUpload} busy={busy} catalogs={catalogs} onPickExisting={setCatalogId} />
-        </div>
-      ) : (
-        <div className="workspace">
-          <aside className="sidebar">
-            <UploadPanel compact onUpload={handleUpload} busy={busy} catalogs={catalogs} onPickExisting={setCatalogId} />
-            <CoursePool courses={poolCourses} search={poolSearch} onSearch={setPoolSearch} onAdd={handleAddCourse} />
-            <YourCourses
-              courses={schedule ? schedule.courses : []}
-              onRemoveCourse={handleRemoveCourse}
-              onSelect={handleSetSelection}
-              onDragStart={setDraggingChip}
-              onDragEnd={() => setDraggingChip(null)}
-            />
-            <div className="sidebar-footer">
-              <span>Estimated credit units</span>
-              <strong>{estimatedUnits.toFixed(2)}</strong>
-            </div>
-          </aside>
+      <div className="workspace">
+        <aside className="sidebar">
+          <UploadPanel compact={!!catalog} onUpload={handleUpload} busy={busy} catalogs={catalogs} onPickExisting={setCatalogId} />
 
-          <main className="main-stage">
-            <ConflictBanner pairs={conflictPairs} />
-            <CalendarGrid
-              flatMeetings={flatMeetings}
-              conflictKeys={conflictKeys}
-              draggingChip={draggingChip}
-              onDropChip={(chip) => {
-                handleSetSelection(chip.courseId, chip.component, chip.sectionId);
-                setDraggingChip(null);
-              }}
-              onClearSlot={(courseId, component) => handleSetSelection(courseId, component, null)}
-            />
-          </main>
-        </div>
-      )}
+          {catalog && (
+            <>
+              <section className="panel stream-panel">
+                <p className="panel-label">My stream / program (optional)</p>
+                <input
+                  className="search-input"
+                  type="text"
+                  placeholder="e.g. Electrical, Mechanical, Software…"
+                  value={streamText}
+                  onChange={(e) => setStreamText(e.target.value)}
+                />
+                <p className="muted stream-hint-note">
+                  Used only for a rough restriction hint on section chips — always double-check the exact restriction text.
+                </p>
+              </section>
+
+              <CoursePool requirements={poolRequirements} search={poolSearch} onSearch={setPoolSearch} onAdd={handleAddCourse} />
+              <YourCourses
+                courses={schedule ? schedule.courses : []}
+                courseTermInfo={courseTermInfo}
+                streamText={streamText}
+                onRemoveCourse={handleRemoveCourse}
+                onSelect={handleSetSelection}
+                onDragStart={setDraggingChip}
+                onDragEnd={() => setDraggingChip(null)}
+                onSwapTerm={handleSwapTerm}
+                onOverrideTerm={(courseId, term) => setTermOverrides((prev) => ({ ...prev, [courseId]: term }))}
+              />
+              <div className="sidebar-footer">
+                <span>Estimated credit units</span>
+                <strong>{estimatedUnits.toFixed(2)}</strong>
+              </div>
+            </>
+          )}
+        </aside>
+
+        <main className="main-stage">
+          <div className="dual-calendar-row">
+            <div className="calendar-column">
+              <ConflictBanner pairs={fallConflicts.pairs} />
+              <CalendarGrid
+                term="Fall"
+                title="Fall Term"
+                flatMeetings={fallMeetings}
+                conflictKeys={fallConflicts.conflictKeys}
+                draggingChip={draggingChip}
+                onDropChip={handleDropChip}
+                onClearSlot={handleClearSlot}
+              />
+            </div>
+            <div className="calendar-column">
+              <ConflictBanner pairs={winterConflicts.pairs} />
+              <CalendarGrid
+                term="Winter"
+                title="Winter Term"
+                flatMeetings={winterMeetings}
+                conflictKeys={winterConflicts.conflictKeys}
+                draggingChip={draggingChip}
+                onDropChip={handleDropChip}
+                onClearSlot={handleClearSlot}
+              />
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

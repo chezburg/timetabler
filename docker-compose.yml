@@ -8,7 +8,7 @@ services:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
     volumes:
-      - scheduler-data:/app/data
+      - /docker/timetabler:/app/data
       # Swap the line above for a bind mount if you want the SQLite file directly
       # browsable/backupable on the host — this is where PUID/PGID actually matters,
       # since it makes the container write files owned by your host user instead of

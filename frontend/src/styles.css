@@ -589,7 +589,6 @@ button {
 /* ---------- Calendar ---------- */
 
 .calendar-empty {
-  flex: 1;
   border: 2px dashed var(--color-grid-strong);
   border-radius: 10px;
   display: flex;
@@ -597,9 +596,10 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 60px 20px;
+  padding: 40px 16px;
   text-align: center;
   background: var(--color-surface);
+  min-height: 220px;
 }
 
 .calendar-wrap {
@@ -799,6 +799,201 @@ button {
   opacity: 1;
 }
 
+/* ---------- Dual term calendars ---------- */
+
+.dual-calendar-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.calendar-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.calendar-panel-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--color-ink);
+}
+
+/* ---------- Term tags & swap control ---------- */
+
+.term-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.term-tag-Fall {
+  background: #f3e4dc;
+  color: #b4633b;
+}
+
+.term-tag-Winter {
+  background: #dde7ee;
+  color: #2c5f8a;
+}
+
+.term-tag-FullYear {
+  background: #ead9ec;
+  color: #8a5a8c;
+}
+
+.term-tag-Unknown {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-soft);
+}
+
+.swap-term-btn {
+  display: inline-block;
+  margin: -2px 0 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.swap-term-btn:hover {
+  color: var(--color-ink);
+}
+
+.term-fix-btn {
+  border: 1px solid var(--color-grid-strong);
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 4px;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+.term-fix-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ---------- Extra badges (requisites detection) ---------- */
+
+.badge-overflow {
+  background: #f5ecd8;
+  color: var(--color-warn);
+}
+
+.badge-online {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.badge-crosslist {
+  background: #ead9ec;
+  color: #8a5a8c;
+}
+
+.badge-restricted {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.pool-restricted-flag {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.pool-add-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ---------- Stream input & match hints ---------- */
+
+.stream-panel {
+  padding-bottom: 12px;
+}
+
+.stream-hint-note {
+  font-size: 11px;
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+.stream-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.stream-hint-excluded {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.stream-hint-included {
+  background: #e2ede6;
+  color: var(--color-success);
+}
+
+.stream-hint-unclear {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-soft);
+}
+
+/* ---------- Expandable chip details ---------- */
+
+.chip-details-toggle {
+  margin-top: 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.chip-details {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--color-grid-strong);
+  font-size: 11px;
+  color: var(--color-ink);
+  line-height: 1.5;
+}
+
+.chip-details p {
+  margin: 0 0 4px;
+}
+
+.chip-details strong {
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 880px) {
@@ -808,5 +1003,8 @@ button {
   .sidebar {
     position: static;
     max-height: none;
+  }
+  .dual-calendar-row {
+    grid-template-columns: 1fr;
   }
 }
