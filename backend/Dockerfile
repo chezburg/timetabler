@@ -10,7 +10,7 @@ COPY src ./src
 
 # su-exec lets the entrypoint drop from root to the (possibly remapped) app user
 # without pulling in the heavier "gosu" + glibc-compat stack.
-RUN apk add --no-cache su-exec \
+RUN apk add --no-cache su-exec shadow \
   && addgroup -S app && adduser -S app -G app \
   && mkdir -p /app/data /app/uploads \
   && chown -R app:app /app
