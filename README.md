@@ -59,6 +59,24 @@ docker compose down -v
 To change the port the app is served on, edit the `ports` mapping under `frontend`
 in `docker-compose.yml` (the left-hand number, e.g. `"8080:80"` → `"3000:80"`).
 
+### Running as a specific user (PUID/PGID)
+
+The backend container supports the common `PUID`/`PGID` pattern: at startup it remaps
+its internal `app` user to the UID/GID you provide (default `1000:1000`) and `chown`s
+its data directory before dropping root and starting Node. This matters most if you
+switch the `scheduler-data` volume to a bind mount (see the commented-out line in
+`docker-compose.yml`) so the SQLite file on your host is owned by you, not some
+arbitrary container UID.
+
+```bash
+cp .env.example .env
+# edit .env — find your own IDs with `id -u` and `id -g`
+docker compose up --build
+```
+
+Compose reads `.env` automatically, so no extra flags are needed. If you don't set
+`PUID`/`PGID` at all, it just defaults to `1000:1000`.
+
 ## Running it locally without Docker (development)
 
 Requires **Node.js 22.5+** (the backend uses Node's built-in `node:sqlite`, so no

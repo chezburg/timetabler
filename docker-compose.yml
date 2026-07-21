@@ -5,17 +5,21 @@ services:
     environment:
       - PORT=4000
       - DATA_DIR=/app/data
-      - PUID=$PUID
-      - PGID=$PGID
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
     volumes:
-      - /docker/timetabler:/app/data
+      - scheduler-data:/app/data
+      # Swap the line above for a bind mount if you want the SQLite file directly
+      # browsable/backupable on the host — this is where PUID/PGID actually matters,
+      # since it makes the container write files owned by your host user instead of
+      # whatever UID the image defaults to:
+      # - ./data:/app/data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/health"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 5s
-
     # Not published to the host on purpose — the frontend's Nginx proxies /api to it
     # over the internal docker network. Uncomment below if you want direct access
     # for debugging (e.g. curl http://localhost:4000/api/health from the host).
