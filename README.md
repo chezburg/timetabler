@@ -72,7 +72,7 @@ class-scheduler/
 docker compose up --build
 ```
 
-Then open **http://localhost:8080**. The frontend container proxies `/api` requests
+Then open **http://localhost:2982**. The frontend container proxies `/api` requests
 to the backend container internally, so nothing else needs configuring.
 
 Data (uploaded catalogs and saved schedules) is stored in a Docker named volume
